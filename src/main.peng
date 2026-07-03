@@ -1,15 +1,29 @@
 import("convert") as convert
 
 func is_string(value) {
-    return value impls string
+    return value impls type string
 }
 
 func is_vector(value) {
-    return value impls vector
+    return value impls type [any]
 }
 
 func is_object(value) {
-    return value impls object
+    if value == nil {
+        return false
+    }
+
+    if is_string(value) {
+        return false
+    }
+
+    if is_vector(value) {
+        return false
+    }
+
+    var keys = try value.keys() else nil
+
+    return keys != nil
 }
 
 func char_at(text, index) {
@@ -21,7 +35,23 @@ func char_at(text, index) {
 }
 
 func is_space(ch) {
-    return ch == " " || ch == "\n" || ch == "\r" || ch == "\t"
+    if ch == " " {
+        return true
+    }
+
+    if ch == "\n" {
+        return true
+    }
+
+    if ch == "\r" {
+        return true
+    }
+
+    if ch == "\t" {
+        return true
+    }
+
+    return false
 }
 
 func is_digit(ch) {
@@ -64,16 +94,24 @@ func escape_string(value) {
 
         if ch == "\"" {
             out = out .. "\\\""
-        } else if ch == "\\" {
-            out = out .. "\\\\"
-        } else if ch == "\n" {
-            out = out .. "\\n"
-        } else if ch == "\r" {
-            out = out .. "\\r"
-        } else if ch == "\t" {
-            out = out .. "\\t"
         } else {
-            out = out .. ch
+            if ch == "\\" {
+                out = out .. "\\\\"
+            } else {
+                if ch == "\n" {
+                    out = out .. "\\n"
+                } else {
+                    if ch == "\r" {
+                        out = out .. "\\r"
+                    } else {
+                        if ch == "\t" {
+                            out = out .. "\\t"
+                        } else {
+                            out = out .. ch
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -136,7 +174,7 @@ func stringify(value) {
         return stringify_object(value)
     }
 
-    return value as string
+    return value as type string
 }
 
 func pretty(value) {
@@ -222,7 +260,7 @@ func stringify_pretty(value, depth) {
         return stringify_pretty_object(value, depth)
     }
 
-    return value as string
+    return value as type string
 }
 
 func parse(text) {
@@ -312,22 +350,36 @@ func parse_string(text, index) {
 
             if esc == "\"" {
                 out = out .. "\""
-            } else if esc == "\\" {
-                out = out .. "\\"
-            } else if esc == "/" {
-                out = out .. "/"
-            } else if esc == "n" {
-                out = out .. "\n"
-            } else if esc == "r" {
-                out = out .. "\r"
-            } else if esc == "t" {
-                out = out .. "\t"
-            } else if esc == "b" {
-                out = out .. ""
-            } else if esc == "f" {
-                out = out .. ""
             } else {
-                return err("unsupported escape sequence", i)
+                if esc == "\\" {
+                    out = out .. "\\"
+                } else {
+                    if esc == "/" {
+                        out = out .. "/"
+                    } else {
+                        if esc == "n" {
+                            out = out .. "\n"
+                        } else {
+                            if esc == "r" {
+                                out = out .. "\r"
+                            } else {
+                                if esc == "t" {
+                                    out = out .. "\t"
+                                } else {
+                                    if esc == "b" {
+                                        out = out .. ""
+                                    } else {
+                                        if esc == "f" {
+                                            out = out .. ""
+                                        } else {
+                                            return err("unsupported escape sequence", i)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         } else {
             out = out .. ch
@@ -499,7 +551,7 @@ func parse_number(text, index) {
     }
 
     if is_float {
-        return ok(literal as f64, i)
+        return ok(literal as type f64, i)
     }
 
     return ok(convert:integer(literal), i)
