@@ -1,0 +1,34 @@
+import("io") as io
+import("pabble_json") as json
+
+func main() {
+    var user = {
+        name = "Penguin",
+        active = true,
+        age = 1,
+        tags = ["lang", "pabble", "json"],
+        meta = {
+            stable = false,
+            note = nil
+        }
+    }
+
+    var compact = json.stringify(user)
+    var formatted = json.pretty(user)
+
+    io:println("compact:")
+    io:println(compact)
+
+    io:println("pretty:")
+    io:println(formatted)
+
+    var parsed = json.parse("{\"name\":\"Pabble\",\"version\":1,\"ok\":true}")
+
+    if parsed.ok {
+        io:println("parsed name:")
+        io:println(parsed.value.name)
+    } else {
+        io:println("json error:")
+        io:println(parsed.error)
+    }
+}

@@ -1,0 +1,6 @@
+[project]
+name = "pabble_json"
+version = "0.1.0"
+entry = "src/main.peng"
+
+[dependencies]

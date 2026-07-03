@@ -1,0 +1,506 @@
+import("convert") as convert
+
+func is_string(value) {
+    return value impls string
+}
+
+func is_vector(value) {
+    return value impls vector
+}
+
+func is_object(value) {
+    return value impls object
+}
+
+func char_at(text, index) {
+    if index >= text.len() {
+        return ""
+    }
+
+    return text[index]
+}
+
+func is_space(ch) {
+    return ch == " " || ch == "\n" || ch == "\r" || ch == "\t"
+}
+
+func is_digit(ch) {
+    return ch >= "0" && ch <= "9"
+}
+
+func skip_ws(text, index) {
+    var i = index
+
+    while i < text.len() && is_space(char_at(text, i)) {
+        i += 1
+    }
+
+    return i
+}
+
+func ok(value, index) {
+    return {
+        ok = true,
+        value = value,
+        index = index,
+        error = nil
+    }
+}
+
+func err(message, index) {
+    return {
+        ok = false,
+        value = nil,
+        index = index,
+        error = message
+    }
+}
+
+func escape_string(value) {
+    var out = ""
+
+    for (var i = 0; i < value.len(); i += 1) {
+        var ch = value[i]
+
+        if ch == "\"" {
+            out = out .. "\\\""
+        } else if ch == "\\" {
+            out = out .. "\\\\"
+        } else if ch == "\n" {
+            out = out .. "\\n"
+        } else if ch == "\r" {
+            out = out .. "\\r"
+        } else if ch == "\t" {
+            out = out .. "\\t"
+        } else {
+            out = out .. ch
+        }
+    }
+
+    return out
+}
+
+func stringify_array(value) {
+    var out = "["
+
+    for (var i = 0; i < value.len(); i += 1) {
+        if i > 0 {
+            out = out .. ","
+        }
+
+        out = out .. stringify(value[i])
+    }
+
+    return out .. "]"
+}
+
+func stringify_object(value) {
+    var keys = value.keys()
+    var out = "{"
+
+    for (var i = 0; i < keys.len(); i += 1) {
+        var key = keys[i]
+
+        if i > 0 {
+            out = out .. ","
+        }
+
+        out = out .. "\"" .. escape_string(key) .. "\":" .. stringify(value.get(key, nil))
+    }
+
+    return out .. "}"
+}
+
+func stringify(value) {
+    if value == nil {
+        return "null"
+    }
+
+    if value == true {
+        return "true"
+    }
+
+    if value == false {
+        return "false"
+    }
+
+    if is_string(value) {
+        return "\"" .. escape_string(value) .. "\""
+    }
+
+    if is_vector(value) {
+        return stringify_array(value)
+    }
+
+    if is_object(value) {
+        return stringify_object(value)
+    }
+
+    return value as string
+}
+
+func pretty(value) {
+    return stringify_pretty(value, 0)
+}
+
+func repeat(value, count) {
+    var out = ""
+
+    for (var i = 0; i < count; i += 1) {
+        out = out .. value
+    }
+
+    return out
+}
+
+func stringify_pretty_array(value, depth) {
+    if value.len() == 0 {
+        return "[]"
+    }
+
+    var out = "[\n"
+    var child_indent = repeat("  ", depth + 1)
+    var current_indent = repeat("  ", depth)
+
+    for (var i = 0; i < value.len(); i += 1) {
+        if i > 0 {
+            out = out .. ",\n"
+        }
+
+        out = out .. child_indent .. stringify_pretty(value[i], depth + 1)
+    }
+
+    return out .. "\n" .. current_indent .. "]"
+}
+
+func stringify_pretty_object(value, depth) {
+    var keys = value.keys()
+
+    if keys.len() == 0 {
+        return "{}"
+    }
+
+    var out = "{\n"
+    var child_indent = repeat("  ", depth + 1)
+    var current_indent = repeat("  ", depth)
+
+    for (var i = 0; i < keys.len(); i += 1) {
+        var key = keys[i]
+
+        if i > 0 {
+            out = out .. ",\n"
+        }
+
+        out = out .. child_indent .. "\"" .. escape_string(key) .. "\": " .. stringify_pretty(value.get(key, nil), depth + 1)
+    }
+
+    return out .. "\n" .. current_indent .. "}"
+}
+
+func stringify_pretty(value, depth) {
+    if value == nil {
+        return "null"
+    }
+
+    if value == true {
+        return "true"
+    }
+
+    if value == false {
+        return "false"
+    }
+
+    if is_string(value) {
+        return "\"" .. escape_string(value) .. "\""
+    }
+
+    if is_vector(value) {
+        return stringify_pretty_array(value, depth)
+    }
+
+    if is_object(value) {
+        return stringify_pretty_object(value, depth)
+    }
+
+    return value as string
+}
+
+func parse(text) {
+    var result = parse_value(text, skip_ws(text, 0))
+
+    if !result.ok {
+        return result
+    }
+
+    var index = skip_ws(text, result.index)
+
+    if index != text.len() {
+        return err("unexpected trailing content", index)
+    }
+
+    return ok(result.value, index)
+}
+
+func decode(text) {
+    var result = parse(text)
+
+    if result.ok {
+        return result.value
+    }
+
+    return nil
+}
+
+func parse_value(text, index) {
+    var i = skip_ws(text, index)
+    var ch = char_at(text, i)
+
+    if ch == "" {
+        return err("unexpected end of input", i)
+    }
+
+    if ch == "\"" {
+        return parse_string(text, i)
+    }
+
+    if ch == "[" {
+        return parse_array(text, i)
+    }
+
+    if ch == "{" {
+        return parse_object(text, i)
+    }
+
+    if ch == "t" {
+        return parse_true(text, i)
+    }
+
+    if ch == "f" {
+        return parse_false(text, i)
+    }
+
+    if ch == "n" {
+        return parse_null(text, i)
+    }
+
+    if ch == "-" || is_digit(ch) {
+        return parse_number(text, i)
+    }
+
+    return err("unexpected character", i)
+}
+
+func parse_string(text, index) {
+    var i = index + 1
+    var out = ""
+
+    while i < text.len() {
+        var ch = char_at(text, i)
+
+        if ch == "\"" {
+            return ok(out, i + 1)
+        }
+
+        if ch == "\\" {
+            i += 1
+
+            if i >= text.len() {
+                return err("unterminated escape sequence", i)
+            }
+
+            var esc = char_at(text, i)
+
+            if esc == "\"" {
+                out = out .. "\""
+            } else if esc == "\\" {
+                out = out .. "\\"
+            } else if esc == "/" {
+                out = out .. "/"
+            } else if esc == "n" {
+                out = out .. "\n"
+            } else if esc == "r" {
+                out = out .. "\r"
+            } else if esc == "t" {
+                out = out .. "\t"
+            } else if esc == "b" {
+                out = out .. ""
+            } else if esc == "f" {
+                out = out .. ""
+            } else {
+                return err("unsupported escape sequence", i)
+            }
+        } else {
+            out = out .. ch
+        }
+
+        i += 1
+    }
+
+    return err("unterminated string", i)
+}
+
+func parse_array(text, index) {
+    var values = []
+    var i = skip_ws(text, index + 1)
+
+    if char_at(text, i) == "]" {
+        return ok(values, i + 1)
+    }
+
+    while true {
+        var item = parse_value(text, i)
+
+        if !item.ok {
+            return item
+        }
+
+        values.push(item.value)
+        i = skip_ws(text, item.index)
+
+        var ch = char_at(text, i)
+
+        if ch == "]" {
+            return ok(values, i + 1)
+        }
+
+        if ch != "," {
+            return err("expected ',' or ']'", i)
+        }
+
+        i = skip_ws(text, i + 1)
+    }
+}
+
+func parse_object(text, index) {
+    var object = {}
+    var i = skip_ws(text, index + 1)
+
+    if char_at(text, i) == "}" {
+        return ok(object, i + 1)
+    }
+
+    while true {
+        if char_at(text, i) != "\"" {
+            return err("expected object key", i)
+        }
+
+        var key_result = parse_string(text, i)
+
+        if !key_result.ok {
+            return key_result
+        }
+
+        var key = key_result.value
+        i = skip_ws(text, key_result.index)
+
+        if char_at(text, i) != ":" {
+            return err("expected ':' after object key", i)
+        }
+
+        var value_result = parse_value(text, i + 1)
+
+        if !value_result.ok {
+            return value_result
+        }
+
+        object[key] = value_result.value
+        i = skip_ws(text, value_result.index)
+
+        var ch = char_at(text, i)
+
+        if ch == "}" {
+            return ok(object, i + 1)
+        }
+
+        if ch != "," {
+            return err("expected ',' or '}'", i)
+        }
+
+        i = skip_ws(text, i + 1)
+    }
+}
+
+func parse_true(text, index) {
+    if char_at(text, index) == "t" && char_at(text, index + 1) == "r" && char_at(text, index + 2) == "u" && char_at(text, index + 3) == "e" {
+        return ok(true, index + 4)
+    }
+
+    return err("expected true", index)
+}
+
+func parse_false(text, index) {
+    if char_at(text, index) == "f" && char_at(text, index + 1) == "a" && char_at(text, index + 2) == "l" && char_at(text, index + 3) == "s" && char_at(text, index + 4) == "e" {
+        return ok(false, index + 5)
+    }
+
+    return err("expected false", index)
+}
+
+func parse_null(text, index) {
+    if char_at(text, index) == "n" && char_at(text, index + 1) == "u" && char_at(text, index + 2) == "l" && char_at(text, index + 3) == "l" {
+        return ok(nil, index + 4)
+    }
+
+    return err("expected null", index)
+}
+
+func parse_number(text, index) {
+    var i = index
+    var literal = ""
+    var is_float = false
+
+    if char_at(text, i) == "-" {
+        literal = literal .. "-"
+        i += 1
+    }
+
+    if !is_digit(char_at(text, i)) {
+        return err("expected digit", i)
+    }
+
+    while is_digit(char_at(text, i)) {
+        literal = literal .. char_at(text, i)
+        i += 1
+    }
+
+    if char_at(text, i) == "." {
+        is_float = true
+        literal = literal .. "."
+        i += 1
+
+        if !is_digit(char_at(text, i)) {
+            return err("expected digit after decimal point", i)
+        }
+
+        while is_digit(char_at(text, i)) {
+            literal = literal .. char_at(text, i)
+            i += 1
+        }
+    }
+
+    if char_at(text, i) == "e" || char_at(text, i) == "E" {
+        is_float = true
+        literal = literal .. char_at(text, i)
+        i += 1
+
+        if char_at(text, i) == "+" || char_at(text, i) == "-" {
+            literal = literal .. char_at(text, i)
+            i += 1
+        }
+
+        if !is_digit(char_at(text, i)) {
+            return err("expected digit in exponent", i)
+        }
+
+        while is_digit(char_at(text, i)) {
+            literal = literal .. char_at(text, i)
+            i += 1
+        }
+    }
+
+    if is_float {
+        return ok(literal as f64, i)
+    }
+
+    return ok(convert:integer(literal), i)
+}
