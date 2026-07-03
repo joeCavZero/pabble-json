@@ -13,7 +13,7 @@ JSON library for Pabble/Penguin projects.
 ## Example
 
 ```peng
-import("pabble_json") as json
+import("json") as json
 import("io") as io
 
 func main() {
