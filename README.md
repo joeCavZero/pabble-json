@@ -4,33 +4,72 @@ JSON library for Pabble/Penguin projects.
 
 ## Functions
 
-- `stringify(value)` — converts Penguin values to compact JSON.
-- `pretty(value)` — converts Penguin values to formatted JSON.
-- `parse(text)` — returns `{ ok, value, index, error }`.
-- `decode(text)` — returns the parsed value, or `nil` if parsing fails.
-- `escape_string(text)` — escapes a string for internal JSON usage.
+- `parse(text)` — Parses a JSON string and returns `{ ok, value, error }`.
+- `decode(text)` — Parses a JSON string and returns the value or `nil` on failure.
+- `stringify(value)` — Converts a Penguin value to compact JSON.
+- `pretty(value)` — Converts a Penguin value to formatted JSON.
+- `escape_string(text)` — Escapes a string using JSON rules.
 
-## Example
+## Reading a JSON file
 
 ```peng
-import("json") as json
+import("fs") as fs
 import("io") as io
+import("json") as json
 
 func main() {
-    var data = {
-        name = "Penguin",
-        tags = ["lang", "json"],
-        active = true
+    var text = fs:read("config.json")
+
+    var result = json:parse(text)
+
+    if !result.ok {
+        io:println("Failed to parse JSON:")
+        io:println(result.error)
+        return
     }
 
-    io:println(json.stringify(data))
-    io:println(json.pretty(data))
+    var config = result.value
 
-    var parsed = json.parse("{\"ok\":true}")
+    io:println("Application:")
+    io:println(config.name)
 
-    if parsed.ok {
-        io:println(parsed.value.ok)
-    } else {
-        io:println(parsed.error)
-    }
+    io:println("Version:")
+    io:println(config.version)
+
+    io:println("Debug:")
+    io:println(config.debug)
 }
+```
+
+Example `config.json`:
+
+```json
+{
+    "name": "Pebble",
+    "version": "0.1.0",
+    "debug": true
+}
+```
+
+## Creating a JSON document
+
+```peng
+import("io") as io
+import("json") as json
+
+func main() {
+    var config = {
+        name = "Pebble",
+        version = "0.1.0",
+        debug = true,
+        authors = [
+            "Joe",
+            "Penguin Team"
+        ]
+    }
+
+    io:println(json.stringify(config))
+
+    io:println(json.pretty(config))
+}
+```
