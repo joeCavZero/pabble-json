@@ -68,8 +68,8 @@ func main() {
         ]
     }
 
-    io:println(json.stringify(config))
+    io:println(json:stringify(config))
 
-    io:println(json.pretty(config))
+    io:println(json:pretty(config))
 }
 ```
