@@ -1,34 +1,26 @@
+import("fs") as fs
 import("io") as io
-import("pabble_json") as json
+import("json") as json
 
 func main() {
-    var user = {
-        name = "Penguin",
-        active = true,
-        age = 1,
-        tags = ["lang", "pabble", "json"],
-        meta = {
-            stable = false,
-            note = nil
-        }
+    var text = fs:read("config.json")
+
+    var result = json:parse(text)
+
+    if !result.ok {
+        io:println("Failed to parse JSON:")
+        io:println(result.error)
+        return
     }
 
-    var compact = json.stringify(user)
-    var formatted = json.pretty(user)
+    var config = result.value
 
-    io:println("compact:")
-    io:println(compact)
+    io:println("Application:")
+    io:println(config.name)
 
-    io:println("pretty:")
-    io:println(formatted)
+    io:println("Version:")
+    io:println(config.version)
 
-    var parsed = json.parse("{\"name\":\"Pabble\",\"version\":1,\"ok\":true}")
-
-    if parsed.ok {
-        io:println("parsed name:")
-        io:println(parsed.value.name)
-    } else {
-        io:println("json error:")
-        io:println(parsed.error)
-    }
+    io:println("Debug:")
+    io:println(config.debug)
 }
